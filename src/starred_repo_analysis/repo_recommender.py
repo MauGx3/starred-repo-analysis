@@ -19,6 +19,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Backwards-compatible UTC alias: Python 3.11 introduced datetime.UTC.
+# Some CI runners / older interpreters (3.10) don't export UTC; provide
+# a fallback so top-level imports that expect UTC do not fail.
+try:  # pragma: no cover - compatibility shim
+    from datetime import UTC  # type: ignore
+except Exception:  # pragma: no cover - fallback for older Python
+    from datetime import timezone as UTC  # type: ignore
+
 try:
     import numpy as np
 except ImportError:

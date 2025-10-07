@@ -12,6 +12,12 @@ Usage:
     recommendations = recommender.recommend(project_path=".")
 """
 
+# Postpone evaluation of type annotations so optional runtime dependencies
+# (like numpy) don't cause import-time errors when used in annotations
+# (for example: "np.ndarray | None" when `np` is None). This keeps the
+# module importable in CI runners that don't have optional ML packages.
+from __future__ import annotations
+
 import json
 import re
 from collections import defaultdict

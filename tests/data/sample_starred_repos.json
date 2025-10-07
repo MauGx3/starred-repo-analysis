@@ -1,0 +1,55 @@
+{
+    "scan_date": "2025-10-07T00:00:00Z",
+    "total_repositories": 2,
+    "username": "sample_user",
+    "repositories": [
+        {
+            "repository": "octocat/hello-world",
+            "owner": "octocat",
+            "name": "hello-world",
+            "github_url": "https://github.com/octocat/hello-world",
+            "description": "Example repo for demonstration",
+            "enhanced_description": "Example repo for demonstration | Topics: example, demo | Built with Python",
+            "language": "Python",
+            "topics": [
+                "example",
+                "demo"
+            ],
+            "stars": 123,
+            "forks": 10,
+            "watchers": 5,
+            "open_issues": 0,
+            "created_at": "2020-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+            "pushed_at": "2025-09-01T12:00:00Z",
+            "homepage": null,
+            "license": "MIT",
+            "archived": false,
+            "fork": false
+        },
+        {
+            "repository": "example/tooling",
+            "owner": "example",
+            "name": "tooling",
+            "github_url": "https://github.com/example/tooling",
+            "description": "CLI tooling for demos",
+            "enhanced_description": "CLI tooling for demos | Topics: cli, tooling | Built with Go",
+            "language": "Go",
+            "topics": [
+                "cli",
+                "tooling"
+            ],
+            "stars": 5,
+            "forks": 1,
+            "watchers": 2,
+            "open_issues": 0,
+            "created_at": "2021-06-01T00:00:00Z",
+            "updated_at": "2025-02-01T00:00:00Z",
+            "pushed_at": "2025-08-01T12:00:00Z",
+            "homepage": null,
+            "license": null,
+            "archived": false,
+            "fork": false
+        }
+    ]
+}

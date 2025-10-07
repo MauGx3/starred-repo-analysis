@@ -11,8 +11,4 @@ This package exports:
 from .repo_recommender import ProjectContext, RepositoryRecommender
 from .scan_starred_repos import StarredRepoScanner
 
-__all__ = [
-	"ProjectContext",
-	"RepositoryRecommender",
-	"StarredRepoScanner",
-]
+__all__ = ["ProjectContext", "RepositoryRecommender", "StarredRepoScanner"]

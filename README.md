@@ -49,7 +49,7 @@ python -m starred_repo_analysis.repo_recommender --starred-repos results/starred
 
     ```sh
     cat << EOF >> ~/.ssh/config
-    
+
     Host *
       AddKeysToAgent yes
       IgnoreUnknown UseKeychain

@@ -2,24 +2,41 @@
 
 # Starred Repo Analysis
 
-Analyses an user's starred repos and provides recommendations for your current project.
+Tools to scan GitHub starred repositories and generate repository
+recommendations for a local project. This repo contains two main
+scripts moved from the original project:
 
-## Installing
+- `scan_starred_repos.py` - Fetch starred repositories from the GitHub
+  API, extract metadata (languages, topics, README preview), and save
+  results to JSON for downstream analysis.
+- `repo_recommender.py` - Analyze a local project's context and
+  generate AI/ML-based recommendations from a starred repositories
+  dataset (semantic similarity, tech-stack match, popularity, recency).
 
-To install this package, run:
+## Quickstart
 
-```sh
-pip install starred-repo-analysis
+Install runtime dependencies:
+
+```fish
+pip install -r requirements.txt
 ```
 
-## Using
+Optional ML/embedding dependencies:
 
-Example usage:
+```fish
+pip install -r requirements-ml.txt
+```
 
-```python
-import starred_repo_analysis
+Run the scanner (needs GITHUB_TOKEN env var for authenticated scans):
 
-...
+```fish
+python -m starred_repo_analysis.scan_starred_repos --limit 10
+```
+
+Generate recommendations using a starred repos JSON file:
+
+```fish
+python -m starred_repo_analysis.repo_recommender --starred-repos results/starred_repos_authenticated_user_latest.json --project-path .
 ```
 
 ## Contributing

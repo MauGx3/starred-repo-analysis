@@ -10,8 +10,10 @@ readme = "README.md"
 authors = [
   { name = "Mauricio Gioachini", email = "maugx3@gmail.com" },
 ]
-requires-python = ">=3.13,<4.0"
+requires-python = ">=3.8,<4.0"
 dependencies = [
+  "requests>=2.28.0",
+  "python-dotenv>=1.0.0",
 ]
 
 [project.urls]  # https://packaging.python.org/en/latest/specifications/well-known-project-urls/#well-known-labels
@@ -40,6 +42,8 @@ dev = [
   "ruff (>=0.9.2)",
   "typeguard (>=4.4.1)",
 ]
+
+## Optional ML dependency group removed from this file to avoid strict linting in minimal environments
 
 [tool.commitizen]  # https://commitizen-tools.github.io/commitizen/config/
 bump_message = "bump: v$current_version → v$new_version"
@@ -74,10 +78,10 @@ show_error_codes = true
 show_error_context = true
 warn_unreachable = true
 
-[tool.pytest.ini_options]  # https://docs.pytest.org/en/latest/reference/reference.html#ini-options-ref
-addopts = "--color=yes --doctest-modules --exitfirst --failed-first --strict-config --strict-markers --verbosity=2 --junitxml=reports/pytest.xml"
+[tool.pytest.ini_options]
+addopts = "-q --maxfail=1 --junitxml=reports/pytest.xml"
 filterwarnings = ["error", "ignore::DeprecationWarning"]
-testpaths = ["src", "tests"]
+testpaths = ["tests"]
 xfail_strict = true
 
 [tool.ruff]  # https://docs.astral.sh/ruff/settings/

@@ -1,8 +1,14 @@
-"""Test Starred Repo Analysis."""
+"""Test Starred Repo Analysis imports and exposes expected names."""
 
-import starred_repo_analysis
+from starred_repo_analysis import (
+    RepositoryRecommender,
+    ProjectContext,
+    StarredRepoScanner,
+)
 
 
-def test_import() -> None:
-    """Test that the package can be imported."""
-    assert isinstance(starred_repo_analysis.__name__, str)
+def test_exports() -> None:
+    """Package exports the main classes and they are importable."""
+    assert callable(RepositoryRecommender)
+    assert callable(ProjectContext)
+    assert callable(StarredRepoScanner)

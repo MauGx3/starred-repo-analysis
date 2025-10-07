@@ -16,9 +16,11 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+      - name: Install commitizen
+        run: |
+          python -m pip install --upgrade pip
+          pip install commitizen
 
       - name: Check PR title
         run: |
-          uvx --from=commitizen cz check --message "${{ github.event.pull_request.title }}"
+          cz check --message "${{ github.event.pull_request.title }}"

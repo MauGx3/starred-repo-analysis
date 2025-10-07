@@ -83,7 +83,7 @@ xfail_strict = true
 fix = true
 line-length = 100
 src = ["src", "tests"]
-target-version = "py313"
+target-version = "py312"
 
 [tool.ruff.format]
 docstring-code-format = true

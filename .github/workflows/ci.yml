@@ -34,7 +34,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt || true
+      - name: Install lint tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Lint (ruff)
+        run: |
+          ruff check src tests
 
       - name: Run tests
         run: |
           PYTHONPATH=src pytest -q
+
+  ml:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install ML deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ml.txt
+          pip install -r requirements-dev.txt || true
+      - name: Run ML smoke tests
+        run: |
+          PYTHONPATH=src pytest -q -k smoke || true

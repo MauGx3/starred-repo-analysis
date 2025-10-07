@@ -1,0 +1,5 @@
+Trigger CI (no-op)
+Timestamp: 2025-10-07T00:00:00Z
+
+This file was added by automation to trigger GitHub Actions workflows.
+It is intentionally a no-op and safe to remove.

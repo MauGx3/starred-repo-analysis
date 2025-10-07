@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project] # https://packaging.python.org/en/latest/specifications/pyproject-toml/
 name = "starred-repo-analysis"
-version = "0.0.0"
+version = "0.1.0"
 description = "Analyses an user's starred repos and provides recommendations for your current project."
 readme = "README.md"
 authors = [{ name = "Mauricio Gioachini", email = "maugx3@gmail.com" }]

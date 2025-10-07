@@ -11,6 +11,11 @@ jobs:
     name: Check PR title
 
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
 

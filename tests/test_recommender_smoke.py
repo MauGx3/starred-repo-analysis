@@ -22,7 +22,10 @@ def test_recommender_smoke(tmp_path: Path):
     # Run recommend; if dependencies for embeddings are missing the
     # recommender still returns a dict after scoring with fallbacks.
     recommendations = recommender.recommend(
-        starred_repos_file=str(sample), project_path=".", top_n=5, min_score=0.0
+        starred_repos_file=str(sample),
+        project_path=".",
+        top_n=5,
+        min_score=0.0,
     )
 
     assert isinstance(recommendations, dict)

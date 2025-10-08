@@ -11,13 +11,14 @@ Usage:
 """
 
 import argparse
-from dotenv import load_dotenv
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
+
+from dotenv import load_dotenv
 
 # Load environment variables from .env file in the project root
 load_dotenv()
@@ -37,7 +38,7 @@ class StarredRepoScanner:
     BASE_URL = "https://api.github.com"
 
     def __init__(
-        self, token: Optional[str] = None, username: Optional[str] = None
+        self, token: str | None = None, username: str | None = None
     ):
         """
         Initialize scanner
@@ -56,8 +57,8 @@ class StarredRepoScanner:
         self.headers["Accept"] = "application/vnd.github.v3+json"
 
     def fetch_starred_repos(
-        self, per_page: int = 100, max_pages: Optional[int] = None
-    ) -> List[Dict]:
+        self, per_page: int = 100, max_pages: int | None = None
+    ) -> list[dict]:
         """
         Fetch starred repositories
 
@@ -65,7 +66,8 @@ class StarredRepoScanner:
             per_page: Number of results per page (max 100)
             max_pages: Maximum number of pages to fetch (None for all)
 
-        Returns:
+        Returns
+        -------
             List of repository data dictionaries
         """
         url = f"{self.BASE_URL}/user/starred"
@@ -125,7 +127,7 @@ class StarredRepoScanner:
         )
         return all_repos
 
-    def fetch_readme(self, owner: str, repo: str) -> Optional[str]:
+    def fetch_readme(self, owner: str, repo: str) -> str | None:
         """
         Fetch README content for a repository
 
@@ -133,7 +135,8 @@ class StarredRepoScanner:
             owner: Repository owner
             repo: Repository name
 
-        Returns:
+        Returns
+        -------
             README content as string, or None if not found
         """
         url = f"{self.BASE_URL}/repos/{owner}/{repo}/readme"
@@ -155,7 +158,7 @@ class StarredRepoScanner:
 
         return None
 
-    def fetch_languages(self, owner: str, repo: str) -> Optional[Dict]:
+    def fetch_languages(self, owner: str, repo: str) -> dict | None:
         """
         Fetch language breakdown for a repository
 
@@ -163,7 +166,8 @@ class StarredRepoScanner:
             owner: Repository owner
             repo: Repository name
 
-        Returns:
+        Returns
+        -------
             Dictionary of languages with byte counts, or None if not found
         """
         url = f"{self.BASE_URL}/repos/{owner}/{repo}/languages"
@@ -181,7 +185,7 @@ class StarredRepoScanner:
         return None
 
     def generate_enhanced_description(
-        self, repo: Dict, readme: Optional[str] = None
+        self, repo: dict, readme: str | None = None
     ) -> str:
         """
         Generate an enhanced description using repository metadata
@@ -190,7 +194,8 @@ class StarredRepoScanner:
             repo: Repository data from GitHub API
             readme: Optional README content for context
 
-        Returns:
+        Returns
+        -------
             Enhanced description string
         """
         base_description = repo.get("description", "")
@@ -250,11 +255,11 @@ class StarredRepoScanner:
 
     def extract_metadata(
         self,
-        repo: Dict,
+        repo: dict,
         include_readme: bool = False,
         include_languages: bool = False,
         enhance_description: bool = False,
-    ) -> Dict:
+    ) -> dict:
         """
         Extract relevant metadata from repository data
 
@@ -264,7 +269,8 @@ class StarredRepoScanner:
             include_languages: Whether to fetch language breakdown
             enhance_description: Whether to generate enhanced description
 
-        Returns:
+        Returns
+        -------
             Dictionary with extracted metadata
         """
         metadata = {
@@ -327,14 +333,14 @@ class StarredRepoScanner:
 
     def scan(
         self,
-        output_file: Optional[str] = None,
+        output_file: str | None = None,
         per_page: int = 100,
-        max_pages: Optional[int] = None,
+        max_pages: int | None = None,
         include_readme: bool = False,
         include_languages: bool = False,
         enhance_description: bool = False,
-        limit: Optional[int] = None,
-    ) -> Dict:
+        limit: int | None = None,
+    ) -> dict:
         """
         Scan starred repositories and generate output
 
@@ -348,7 +354,8 @@ class StarredRepoScanner:
             enhance_description: Whether to generate enhanced descriptions
             limit: Maximum number of repositories to process
 
-        Returns:
+        Returns
+        -------
             Dictionary with scan results
         """
         # Fetch repositories
@@ -383,7 +390,7 @@ class StarredRepoScanner:
         from datetime import timezone
 
         output = {
-            "scan_date": datetime.now(timezone.utc).isoformat() + "Z",
+            "scan_date": datetime.now(UTC).isoformat() + "Z",
             "total_repositories": len(repositories),
             "username": self.username or "authenticated_user",
             "repositories": repositories,
@@ -393,7 +400,7 @@ class StarredRepoScanner:
         if not output_file:
             from datetime import timezone
 
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             username = self.username or "authenticated_user"
             output_file = f"results/starred_repos_{username}_{timestamp}.json"
 
@@ -530,8 +537,8 @@ Examples:
 
         # Helper: find latest starred_repos file in results/
         def find_latest_results_file(
-            username_hint: Optional[str] = None,
-        ) -> Optional[str]:
+            username_hint: str | None = None,
+        ) -> str | None:
             results_dir = os.path.join(os.getcwd(), "results")
             if not os.path.isdir(results_dir):
                 return None
@@ -621,7 +628,7 @@ Examples:
             # Let recommender module handle default saving behavior by saving here to results/
             from datetime import datetime, timezone
 
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             ext = "md" if args.recommend_format == "markdown" else "txt"
             default_path = os.path.join(
                 "results", f"recommendations_{timestamp}.{ext}"

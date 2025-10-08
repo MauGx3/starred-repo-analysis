@@ -80,7 +80,7 @@ class RecommendationScore:
     popularity_score: float  # 0-1: Normalized popularity
     recency_score: float  # 0-1: Recent activity
     composite_score: float  # 0-100: Weighted total
-    reasoning: List[str]  # Human-readable reasons
+    reasoning: list[str]  # Human-readable reasons
 
 
 @dataclass
@@ -93,7 +93,7 @@ class RepositoryRecommendation:
     description: str
     category: str
     score: RecommendationScore
-    metadata: Dict
+    metadata: dict
 
 
 class ProjectContext:
@@ -108,7 +108,7 @@ class ProjectContext:
         self.dependencies = []
         self.description = ""
 
-    def extract(self) -> "ProjectContext":
+    def extract(self) -> ProjectContext:
         """Extract project context from multiple sources"""
         self._extract_readme()
         self._extract_package_info()
@@ -130,7 +130,7 @@ class ProjectContext:
             readme_path = self.project_path / pattern
             if readme_path.exists():
                 try:
-                    with open(readme_path, "r", encoding="utf-8") as f:
+                    with open(readme_path, encoding="utf-8") as f:
                         self.readme_content = f.read()
                     self._parse_readme_content()
                     break
@@ -209,7 +209,7 @@ class ProjectContext:
         req_file = self.project_path / "requirements.txt"
         if req_file.exists():
             try:
-                with open(req_file, "r", encoding="utf-8") as f:
+                with open(req_file, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line and not line.startswith("#"):
@@ -224,7 +224,7 @@ class ProjectContext:
         pkg_file = self.project_path / "package.json"
         if pkg_file.exists():
             try:
-                with open(pkg_file, "r", encoding="utf-8") as f:
+                with open(pkg_file, encoding="utf-8") as f:
                     pkg_data = json.load(f)
                     self.description = self.description or pkg_data.get(
                         "description", ""
@@ -374,7 +374,7 @@ class RepositoryRecommender:
         project_path: str = ".",
         top_n: int = 20,
         min_score: float = 30.0,
-    ) -> Dict[str, List[RepositoryRecommendation]]:
+    ) -> dict[str, list[RepositoryRecommendation]]:
         """
         Generate repository recommendations
 
@@ -384,7 +384,8 @@ class RepositoryRecommender:
             top_n: Number of top recommendations per category
             min_score: Minimum composite score (0-100)
 
-        Returns:
+        Returns
+        -------
             Dictionary mapping categories to recommendations
         """
         # Extract project context
@@ -396,7 +397,7 @@ class RepositoryRecommender:
 
         # Load starred repositories
         print(f"\nLoading starred repositories from {starred_repos_file}...")
-        with open(starred_repos_file, "r", encoding="utf-8") as f:
+        with open(starred_repos_file, encoding="utf-8") as f:
             data = json.load(f)
             repos = data.get("repositories", [])
         print(f"Loaded {len(repos)} repositories")
@@ -458,7 +459,7 @@ class RepositoryRecommender:
 
         return dict(categorized)
 
-    def _get_repo_text(self, repo: Dict) -> str:
+    def _get_repo_text(self, repo: dict) -> str:
         """Get text representation of repository for embedding"""
         parts = []
 
@@ -477,10 +478,10 @@ class RepositoryRecommender:
 
     def _score_repository(
         self,
-        repo: Dict,
+        repo: dict,
         context: ProjectContext,
-        project_embedding: Optional[np.ndarray],
-        repo_embedding: Optional[np.ndarray],
+        project_embedding: np.ndarray | None,
+        repo_embedding: np.ndarray | None,
     ) -> RecommendationScore:
         """Calculate comprehensive score for a repository"""
         reasoning = []
@@ -532,7 +533,7 @@ class RepositoryRecommender:
         )
 
     def _calculate_tech_stack_score(
-        self, repo: Dict, context: ProjectContext, reasoning: List[str]
+        self, repo: dict, context: ProjectContext, reasoning: list[str]
     ) -> float:
         """Calculate technology stack matching score"""
         score = 0.0
@@ -572,7 +573,7 @@ class RepositoryRecommender:
         return min(score, 1.0)
 
     def _calculate_topic_score(
-        self, repo: Dict, context: ProjectContext, reasoning: List[str]
+        self, repo: dict, context: ProjectContext, reasoning: list[str]
     ) -> float:
         """Calculate topic overlap score"""
         repo_topics = set(t.lower() for t in repo.get("topics", []))
@@ -590,7 +591,7 @@ class RepositoryRecommender:
         return 0.0
 
     def _calculate_popularity_score(
-        self, repo: Dict, reasoning: List[str]
+        self, repo: dict, reasoning: list[str]
     ) -> float:
         """Calculate normalized popularity score"""
         stars = repo.get("stars", 0)
@@ -609,7 +610,7 @@ class RepositoryRecommender:
         return score
 
     def _calculate_recency_score(
-        self, repo: Dict, reasoning: List[str]
+        self, repo: dict, reasoning: list[str]
     ) -> float:
         """Calculate recency/activity score"""
         from datetime import datetime, timezone
@@ -645,7 +646,7 @@ class RepositoryRecommender:
             return 0.0
 
     def _categorize_repository(
-        self, repo: Dict, score: RecommendationScore
+        self, repo: dict, score: RecommendationScore
     ) -> str:
         """Categorize repository based on content and score"""
         desc = repo.get("description", "")
@@ -662,14 +663,13 @@ class RepositoryRecommender:
         # Default categorization based on score
         if score.tech_stack_score > 0.7:
             return "direct_dependency"
-        elif score.semantic_score > 0.6:
+        if score.semantic_score > 0.6:
             return "reference_implementation"
-        else:
-            return "learning_resource"
+        return "learning_resource"
 
     def generate_report(
         self,
-        recommendations: Dict[str, List[RepositoryRecommendation]],
+        recommendations: dict[str, list[RepositoryRecommendation]],
         output_format: str = "markdown",
     ) -> str:
         """
@@ -679,16 +679,16 @@ class RepositoryRecommender:
             recommendations: Categorized recommendations
             output_format: 'markdown' or 'text'
 
-        Returns:
+        Returns
+        -------
             Formatted report string
         """
         if output_format == "markdown":
             return self._generate_markdown_report(recommendations)
-        else:
-            return self._generate_text_report(recommendations)
+        return self._generate_text_report(recommendations)
 
     def _generate_markdown_report(
-        self, recommendations: Dict[str, List[RepositoryRecommendation]]
+        self, recommendations: dict[str, list[RepositoryRecommendation]]
     ) -> str:
         """Generate markdown report"""
         lines = ["# Repository Recommendations\n"]
@@ -754,7 +754,7 @@ class RepositoryRecommender:
         return "\n".join(lines)
 
     def _generate_text_report(
-        self, recommendations: Dict[str, List[RepositoryRecommendation]]
+        self, recommendations: dict[str, list[RepositoryRecommendation]]
     ) -> str:
         """Generate plain text report"""
         lines = ["REPOSITORY RECOMMENDATIONS", "=" * 50, ""]

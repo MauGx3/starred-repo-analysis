@@ -24,14 +24,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
-      - name: Ensure PyPI token present
-        if: ${{ secrets.PYPI_API_TOKEN == '' }}
-        run: |
-          echo "PYPI_API_TOKEN is not set; failing publish job to avoid accidental publish"
-          exit 1
-
-      - name: Publish package
-        if: ${{ secrets.PYPI_API_TOKEN != '' }}
+      - name: Build package
         run: |
           uv build
-          uv publish
+
+      - name: Publish package
+        run: |
+          uv publish --token ${{ secrets.PYPI_API_TOKEN }}

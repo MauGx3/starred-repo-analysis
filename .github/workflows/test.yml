@@ -32,9 +32,10 @@ jobs:
           pip install -r requirements-dev.txt || true
 
       - name: Run lint (ruff)
+        continue-on-error: true
         run: |
           python -m pip install ruff
-          ruff check src tests || true
+          ruff check src tests
 
       - name: Run tests
         run: |

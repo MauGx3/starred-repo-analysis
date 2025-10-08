@@ -82,7 +82,7 @@ const repoDetails = await get_repository({
 
 ### Step 4: Generate AI Analysis
 
-Use the [Repository Analyzer prompt](../prompts/repository-analyzer.md) to analyze each repository:
+Use an AI-powered repository analyzer to analyze each repository:
 
 1. Prepare repository information:
    ```
@@ -326,9 +326,8 @@ Planned improvements for this workflow:
 
 ## Related Resources
 
-- [Repository Analyzer Prompt](../prompts/repository-analyzer.md)
-- [GitHub MCP Server Tools Reference](github-mcp-server-tools.md)
 - [GitHub API Documentation](https://docs.github.com/en/rest)
+- [GitHub MCP Server](https://github.com/modelcontextprotocol/servers)
 
 ---
 

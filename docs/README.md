@@ -109,14 +109,14 @@ python scan_starred_repos.py --token ghp_xxxxx --output my-stars.json
 
 **Next Steps:**
 
-After scanning, use the [Repository Analyzer prompt](../_prompts/repository-analyzer.md) to generate:
+After scanning, use AI-powered analysis to generate:
 - Enhanced descriptions
 - Keywords and tags
 - Potential use cases
 - Category classifications
 - Integration opportunities
 
-See the [Starred Repository Scanner guide](../_instructions/starred-repository-scanner.md) for complete workflow instructions.
+See the [Starred Repository Scanner guide](starred-repository-scanner.md) for complete workflow instructions.
 
 ## Adding New Scripts
 
@@ -132,6 +132,5 @@ When adding new scripts to this directory:
 
 ## Related Documentation
 
-- [Starred Repository Scanner Instructions](../_instructions/starred-repository-scanner.md)
-- [Repository Analyzer Prompt](../_prompts/repository-analyzer.md)
-- [GitHub MCP Server Tools](../_instructions/github-mcp-server-tools.md)
+- [Starred Repository Scanner Guide](starred-repository-scanner.md)
+- [GitHub API Documentation](https://docs.github.com/en/rest)

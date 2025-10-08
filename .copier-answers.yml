@@ -7,7 +7,7 @@ project_description: Analyses an user's starred repos and provides recommendatio
 project_name: Starred Repo Analysis
 project_type: package
 project_url: https://github.com/MauGx3/starred-repo-analysis
-python_version: '3.13'
+python_version: '3.10'
 typing: strict
 with_conventional_commits: true
 with_typer_cli: false

@@ -10,32 +10,37 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11"]
 
-    name: Python ${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10"]
+        resolution-strategy: ["highest", "lowest-direct"]
+
+    name: Python ${{ matrix.python-version }} (resolution=${{ matrix.resolution-strategy }})
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          node-version: 23
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt || true
+      - name: Install @devcontainers/cli
+        run: npm install --location=global @devcontainers/cli@0.76.0
 
-      - name: Run lint (ruff)
+      - name: Start Dev Container
         run: |
-          python -m pip install ruff
-          ruff check src tests || true
+          git config --global init.defaultBranch main
+          devcontainer up --workspace-folder .
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          RESOLUTION_STRATEGY: ${{ matrix.resolution-strategy }}
 
-      - name: Run tests
-        run: |
-          PYTHONPATH=src pytest -q
+      - name: Lint package
+        run: devcontainer exec --workspace-folder . poe lint
+
+      - name: Test package
+        run: devcontainer exec --workspace-folder . poe test

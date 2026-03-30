@@ -14,6 +14,9 @@ requires-python = ">=3.10,<4.0"
 dependencies = [
 ]
 
+[project.scripts]
+starred-repo-analysis = "starred_repo_analysis.cli:main"
+
 [project.urls]  # https://packaging.python.org/en/latest/specifications/well-known-project-urls/#well-known-labels
 homepage = "https://github.com/MauGx3/starred-repo-analysis"
 source = "https://github.com/MauGx3/starred-repo-analysis"

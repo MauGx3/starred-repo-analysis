@@ -1,7 +1,4 @@
-import os
 from pathlib import Path
-
-import json
 
 from starred_repo_analysis import RepositoryRecommender
 
@@ -13,7 +10,6 @@ def test_recommender_smoke(tmp_path: Path):
     without raising. The environment may not have ML libs installed,
     so the test only asserts the return type and basic structure.
     """
-
     sample = Path(__file__).parent / "data" / "sample_starred_repos.json"
     assert sample.exists()
 

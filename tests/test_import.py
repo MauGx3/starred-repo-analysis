@@ -1,10 +1,6 @@
 """Test Starred Repo Analysis imports and exposes expected names."""
 
-from starred_repo_analysis import (
-    RepositoryRecommender,
-    ProjectContext,
-    StarredRepoScanner,
-)
+from starred_repo_analysis import ProjectContext, RepositoryRecommender, StarredRepoScanner
 
 
 def test_exports() -> None:

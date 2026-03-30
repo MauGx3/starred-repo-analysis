@@ -1,5 +1,3 @@
-import json
-import os
 from pathlib import Path
 
 from starred_repo_analysis import RepositoryRecommender

@@ -15,8 +15,6 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
-from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 
@@ -388,10 +386,8 @@ class StarredRepoScanner:
             repositories.append(metadata)
 
         # Create output structure
-        from datetime import timezone
-
         output = {
-            "scan_date": datetime.now(UTC).isoformat() + "Z",
+            "scan_date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "total_repositories": len(repositories),
             "username": self.username or "authenticated_user",
             "repositories": repositories,
@@ -399,8 +395,6 @@ class StarredRepoScanner:
 
         # Generate default output filename if not specified
         if not output_file:
-            from datetime import timezone
-
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             username = self.username or "authenticated_user"
             output_file = f"results/starred_repos_{username}_{timestamp}.json"
@@ -627,7 +621,7 @@ Examples:
             print(f"\nRecommendations saved to {output_path}")
         else:
             # Let recommender module handle default saving behavior by saving here to results/
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             ext = "md" if args.recommend_format == "markdown" else "txt"

@@ -51,6 +51,9 @@ jobs:
         run: |
           PYTHONPATH=src pytest -q
 
+      - name: Drift — Architectural Erosion Check
+        uses: sauremilk/drift@v1.1.10
+
   ml:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'

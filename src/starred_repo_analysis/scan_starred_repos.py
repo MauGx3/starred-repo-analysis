@@ -14,12 +14,13 @@ import argparse
 import json
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 
+UTC = timezone.utc
 # Load environment variables from .env file in the project root
 load_dotenv()
 

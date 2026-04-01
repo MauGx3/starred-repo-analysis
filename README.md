@@ -2,41 +2,20 @@
 
 # Starred Repo Analysis
 
-Tools to scan GitHub starred repositories and generate repository
-recommendations for a local project. This repo contains two main
-scripts moved from the original project:
+Analyses an user's starred repos and provides recommendations for your current project.
 
-- `scan_starred_repos.py` - Fetch starred repositories from the GitHub
-  API, extract metadata (languages, topics, README preview), and save
-  results to JSON for downstream analysis.
-- `repo_recommender.py` - Analyze a local project's context and
-  generate AI/ML-based recommendations from a starred repositories
-  dataset (semantic similarity, tech-stack match, popularity, recency).
+## Using
 
-## Quickstart
+To serve this app, run:
 
-Install runtime dependencies:
-
-```fish
-pip install -r requirements.txt
+```sh
+docker compose up app
 ```
 
-Optional ML/embedding dependencies:
+Within the Dev Container this is equivalent to:
 
-```fish
-pip install -r requirements-ml.txt
-```
-
-Run the scanner (needs GITHUB_TOKEN env var for authenticated scans):
-
-```fish
-python -m starred_repo_analysis.scan_starred_repos --limit 10
-```
-
-Generate recommendations using a starred repos JSON file:
-
-```fish
-python -m starred_repo_analysis.repo_recommender --starred-repos results/starred_repos_authenticated_user_latest.json --project-path .
+```sh
+poe serve
 ```
 
 ## Contributing
@@ -96,8 +75,6 @@ The following development environments are supported:
 - Run `poe` from within the development environment to print a list of [Poe the Poet](https://github.com/nat-n/poethepoet) tasks available to run on this project.
 - Run `uv add {package}` from within the development environment to install a run time dependency and add it to `pyproject.toml` and `uv.lock`. Add `--dev` to install a development dependency.
 - Run `uv sync --upgrade` from within the development environment to upgrade all dependencies to the latest versions allowed by `pyproject.toml`. Add `--only-dev` to upgrade the development dependencies only.
-- Run `cz bump` to bump the package's version, update the `CHANGELOG.md`, and create a git tag. Then push the changes and the git tag with `git push origin main --tags`.
+- Run `cz bump` to bump the app's version, update the `CHANGELOG.md`, and create a git tag. Then push the changes and the git tag with `git push origin main --tags`.
 
 </details>
-
-_This project was started using the superlinear-ai/substrate copier template._

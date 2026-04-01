@@ -17,19 +17,9 @@ theme:
 
 nav:
   - Home: index.md
-  - Guide: starred-repository-scanner.md
-  - Reference: reference.md
-
-watch:
-  - src
 
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            docstring_style: numpy
 
 markdown_extensions:
   - pymdownx.highlight

@@ -36,7 +36,7 @@ jobs:
 
       - name: Build docs
         run: |
-          python -m mkdocs build
+          PYTHONPATH=src python -m mkdocs build
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

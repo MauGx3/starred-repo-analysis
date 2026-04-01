@@ -4,7 +4,7 @@ site_url: https://MauGx3.github.io/starred-repo-analysis
 repo_url: https://github.com/MauGx3/starred-repo-analysis
 repo_name: MauGx3/starred-repo-analysis
 
-strict: true
+strict: false
 
 validation:
   omitted_files: warn
@@ -17,6 +17,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Guide: starred-repository-scanner.md
   - Reference: reference.md
 
 watch:

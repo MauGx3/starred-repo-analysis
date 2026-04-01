@@ -57,7 +57,8 @@ repos:
         entry: uv lock
         args: ["--check"]
         require_serial: true
-        language: system
+        language: python
+        additional_dependencies: [uv==0.8.0]
         pass_filenames: false
       - id: ruff-check
         name: ruff check

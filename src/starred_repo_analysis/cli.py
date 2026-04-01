@@ -334,4 +334,3 @@ def main() -> None:
 
     if args.recommend:
         _run_recommendations(args)
-

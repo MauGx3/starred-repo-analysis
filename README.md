@@ -99,3 +99,5 @@ The following development environments are supported:
 - Run `cz bump` to bump the package's version, update the `CHANGELOG.md`, and create a git tag. Then push the changes and the git tag with `git push origin main --tags`.
 
 </details>
+
+_This project was started using the superlinear-ai/substrate copier template._

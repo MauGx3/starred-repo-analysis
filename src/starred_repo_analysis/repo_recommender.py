@@ -224,7 +224,9 @@ class ProjectContext:
                         stripped_line = raw_line.strip()
                         if stripped_line and not stripped_line.startswith("#"):
                             # Extract package name
-                            pkg = re.split(r"[>=<\[]", stripped_line)[0].strip()
+                            pkg = re.split(r"[>=<\[]", stripped_line)[
+                                0
+                            ].strip()
                             if pkg:
                                 self.dependencies.append(pkg)
             except (OSError, UnicodeDecodeError) as error:
@@ -235,7 +237,9 @@ class ProjectContext:
             try:
                 with pkg_file.open(encoding="utf-8") as file_handle:
                     pkg_data = json.load(file_handle)
-                    self.description = self.description or pkg_data.get("description", "")
+                    self.description = self.description or pkg_data.get(
+                        "description", ""
+                    )
 
                     # Extract dependencies
                     deps = pkg_data.get("dependencies", {})
@@ -246,7 +250,11 @@ class ProjectContext:
                     # Extract keywords as topics
                     keywords = pkg_data.get("keywords", [])
                     self.topics.extend(keywords)
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            except (
+                OSError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ) as error:
                 LOGGER.warning("Could not read package.json: %s", error)
 
     def _detect_languages(self) -> None:
@@ -280,7 +288,9 @@ class ProjectContext:
             LOGGER.warning("Could not scan directory: %s", error)
 
         # Take top 3 languages by file count
-        sorted_langs = sorted(lang_counts.items(), key=lambda x: x[1], reverse=True)
+        sorted_langs = sorted(
+            lang_counts.items(), key=lambda x: x[1], reverse=True
+        )
         self.languages = [lang for lang, _ in sorted_langs[:3]]
 
     def get_text_representation(self) -> str:
@@ -321,15 +331,34 @@ class RepositoryRecommender:
             "threshold": 0.7,
         },
         "tool_utility": {
-            "keywords": ["cli", "tool", "utility", "command-line", "automation"],
+            "keywords": [
+                "cli",
+                "tool",
+                "utility",
+                "command-line",
+                "automation",
+            ],
             "threshold": 0.6,
         },
         "reference_implementation": {
-            "keywords": ["example", "sample", "template", "boilerplate", "starter"],
+            "keywords": [
+                "example",
+                "sample",
+                "template",
+                "boilerplate",
+                "starter",
+            ],
             "threshold": 0.5,
         },
         "learning_resource": {
-            "keywords": ["tutorial", "guide", "learning", "course", "documentation", "awesome"],
+            "keywords": [
+                "tutorial",
+                "guide",
+                "learning",
+                "course",
+                "documentation",
+                "awesome",
+            ],
             "threshold": 0.4,
         },
     }
@@ -380,7 +409,9 @@ class RepositoryRecommender:
         LOGGER.info("Frameworks: %s", ", ".join(context.frameworks))
 
         # Load starred repositories
-        LOGGER.info("Loading starred repositories from %s...", starred_repos_file)
+        LOGGER.info(
+            "Loading starred repositories from %s...", starred_repos_file
+        )
         with Path(starred_repos_file).open(encoding="utf-8") as file_handle:
             data = json.load(file_handle)
             repos = data.get("repositories", [])
@@ -432,7 +463,9 @@ class RepositoryRecommender:
 
         # Sort each category by score and limit to top_n
         for category in categorized:
-            categorized[category].sort(key=lambda x: x.score.composite_score, reverse=True)
+            categorized[category].sort(
+                key=lambda x: x.score.composite_score, reverse=True
+            )
             categorized[category] = categorized[category][:top_n]
 
         LOGGER.info("Generated %s recommendations", len(recommendations))
@@ -475,9 +508,13 @@ class RepositoryRecommender:
             and repo_embedding is not None
             and cosine_similarity is not None
         ):
-            semantic_score = float(cosine_similarity([project_embedding], [repo_embedding])[0][0])
+            semantic_score = float(
+                cosine_similarity([project_embedding], [repo_embedding])[0][0]
+            )
             if semantic_score > SEMANTIC_SIMILARITY_HIGH:
-                reasoning.append(f"High semantic similarity ({semantic_score:.2f})")
+                reasoning.append(
+                    f"High semantic similarity ({semantic_score:.2f})"
+                )
 
         # 2. Technology stack matching (0-1)
         tech_score = self._calculate_tech_stack_score(repo, context, reasoning)
@@ -526,7 +563,9 @@ class RepositoryRecommender:
             matches.append(f"language: {repo_lang}")
 
         # Framework mentions in description/topics
-        repo_text = (f"{repo.get('description', '')} {' '.join(repo.get('topics', []))}").lower()
+        repo_text = (
+            f"{repo.get('description', '')} {' '.join(repo.get('topics', []))}"
+        ).lower()
 
         for framework in context.frameworks:
             if framework.lower() in repo_text:
@@ -566,7 +605,9 @@ class RepositoryRecommender:
 
         return 0.0
 
-    def _calculate_popularity_score(self, repo: dict, reasoning: list[str]) -> float:
+    def _calculate_popularity_score(
+        self, repo: dict, reasoning: list[str]
+    ) -> float:
         """Calculate normalized popularity score."""
         stars = repo.get("stars", 0)
 
@@ -583,7 +624,9 @@ class RepositoryRecommender:
 
         return score
 
-    def _calculate_recency_score(self, repo: dict, reasoning: list[str]) -> float:
+    def _calculate_recency_score(
+        self, repo: dict, reasoning: list[str]
+    ) -> float:
         """Calculate recency/activity score."""
         pushed_at = repo.get("pushed_at")
         if not pushed_at:
@@ -591,7 +634,9 @@ class RepositoryRecommender:
 
         try:
             # Parse ISO format timestamp
-            last_update = datetime.fromisoformat(pushed_at.replace("Z", "+00:00"))
+            last_update = datetime.fromisoformat(
+                pushed_at.replace("Z", "+00:00")
+            )
             now = datetime.now(timezone.utc)
             days_ago = (now - last_update).days
 
@@ -613,7 +658,9 @@ class RepositoryRecommender:
         else:
             return score
 
-    def _categorize_repository(self, repo: dict, score: RecommendationScore) -> str:
+    def _categorize_repository(
+        self, repo: dict, score: RecommendationScore
+    ) -> str:
         """Categorize repository based on content and score."""
         desc = repo.get("description", "")
         enhanced = repo.get("enhanced_description", "")
@@ -673,14 +720,20 @@ class RepositoryRecommender:
 
             for rec in recs:
                 lines.append(f"### [{rec.owner}/{rec.name}]({rec.url})")
-                score_line = f"\n**Score: {rec.score.composite_score:.1f}/100**\n"
+                score_line = (
+                    f"\n**Score: {rec.score.composite_score:.1f}/100**\n"
+                )
                 lines.append(score_line)
                 lines.append(f"{rec.description}\n")
 
                 # Scoring details
                 lines.append("**Scoring Breakdown:**")
-                lines.append(f"- Semantic Similarity: {rec.score.semantic_score:.2f}")
-                lines.append(f"- Tech Stack Match: {rec.score.tech_stack_score:.2f}")
+                lines.append(
+                    f"- Semantic Similarity: {rec.score.semantic_score:.2f}"
+                )
+                lines.append(
+                    f"- Tech Stack Match: {rec.score.tech_stack_score:.2f}"
+                )
                 lines.append(f"- Topic Overlap: {rec.score.topic_score:.2f}")
                 lines.append(f"- Popularity: {rec.score.popularity_score:.2f}")
                 lines.append(f"- Recency: {rec.score.recency_score:.2f}\n")
@@ -688,7 +741,9 @@ class RepositoryRecommender:
                 # Reasoning
                 if rec.score.reasoning:
                     lines.append("**Why this recommendation:**")
-                    lines.extend([f"- {reason}" for reason in rec.score.reasoning])
+                    lines.extend(
+                        [f"- {reason}" for reason in rec.score.reasoning]
+                    )
                     lines.append("")
 
                 # Metadata
@@ -732,7 +787,9 @@ class RepositoryRecommender:
 
                 if rec.score.reasoning:
                     lines.append("   Reasons:")
-                    lines.extend([f"   - {reason}" for reason in rec.score.reasoning])
+                    lines.extend(
+                        [f"   - {reason}" for reason in rec.score.reasoning]
+                    )
 
                 lines.append("")
 
@@ -743,24 +800,39 @@ def main() -> None:
     """Run the CLI interface for testing."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-    parser = argparse.ArgumentParser(description="AI-powered repository recommendations")
+    parser = argparse.ArgumentParser(
+        description="AI-powered repository recommendations"
+    )
     parser.add_argument(
         "--starred-repos",
         default="results/starred_repos_authenticated_user_latest.json",
         help="Path to starred repositories JSON file",
     )
-    parser.add_argument("--project-path", default=".", help="Path to project for analysis")
     parser.add_argument(
-        "--output", "-o", help="Output file for report (default: auto-generated in results/)"
+        "--project-path", default=".", help="Path to project for analysis"
     )
     parser.add_argument(
-        "--format", choices=["markdown", "text"], default="markdown", help="Output format"
+        "--output",
+        "-o",
+        help="Output file for report (default: auto-generated in results/)",
     )
     parser.add_argument(
-        "--top-n", type=int, default=10, help="Number of recommendations per category"
+        "--format",
+        choices=["markdown", "text"],
+        default="markdown",
+        help="Output format",
     )
     parser.add_argument(
-        "--min-score", type=float, default=30.0, help="Minimum score threshold (0-100)"
+        "--top-n",
+        type=int,
+        default=10,
+        help="Number of recommendations per category",
+    )
+    parser.add_argument(
+        "--min-score",
+        type=float,
+        default=30.0,
+        help="Minimum score threshold (0-100)",
     )
 
     args = parser.parse_args()

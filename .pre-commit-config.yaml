@@ -65,7 +65,8 @@ repos:
         entry: ruff check
         args: ["--force-exclude", "--extend-fixable=ERA001,F401,F841,T201,T203"]
         require_serial: true
-        language: system
+        language: python
+        additional_dependencies: [ruff==0.9.2]
         types_or: [python, pyi]
       - id: codespell
         name: codespell
@@ -78,7 +79,8 @@ repos:
         entry: ruff format
         args: [--force-exclude]
         require_serial: true
-        language: system
+        language: python
+        additional_dependencies: [ruff==0.9.2]
         types_or: [python, pyi]
       - id: ty
         name: ty

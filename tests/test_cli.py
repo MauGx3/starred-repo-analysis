@@ -20,6 +20,8 @@ class TestParseGithubUsername:
             ("https://github.com/octocat/", "octocat"),
             ("https://www.github.com/octocat", "octocat"),
             ("http://github.com/octocat", "octocat"),
+            # Port in URL - parsed.hostname strips it correctly.
+            ("https://github.com:443/octocat", "octocat"),
             ("https://github.com/octocat/some-repo", "octocat"),
             ("octocat", "octocat"),
             ("octocat/some-repo", "octocat"),
@@ -40,6 +42,11 @@ class TestParseGithubUsername:
         """Raises ValueError for non-github.com hosts."""
         with pytest.raises(ValueError, match="Unsupported host"):
             parse_github_username(value)
+
+    def test_unsupported_scheme_raises(self) -> None:
+        """Raises ValueError for non-http/https schemes."""
+        with pytest.raises(ValueError, match="Unsupported URL scheme"):
+            parse_github_username("ssh://github.com/octocat")
 
     def test_url_without_path_raises(self) -> None:
         """Raises ValueError when a github.com URL has no username segment."""

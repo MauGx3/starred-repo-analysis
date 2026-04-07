@@ -63,11 +63,19 @@ def parse_github_username(value: str) -> str:
     'octocat'
     """
     parsed = urlparse(value)
-    # If a scheme is present it must be a URL - validate and extract.
-    if parsed.scheme in {"http", "https"}:
-        if parsed.netloc.lower() not in _GITHUB_HOSTS:
+    # Any non-empty scheme means the value was intended as a URL.
+    if parsed.scheme:
+        if parsed.scheme not in {"http", "https"}:
             msg = (
-                f"Unsupported host '{parsed.netloc}'. "
+                f"Unsupported URL scheme '{parsed.scheme}'. "
+                "Only http/https GitHub URLs are accepted."
+            )
+            raise ValueError(msg)
+        # Use parsed.hostname so port numbers in netloc don't break comparison.
+        hostname = (parsed.hostname or "").lower()
+        if hostname not in _GITHUB_HOSTS:
+            msg = (
+                f"Unsupported host '{parsed.hostname}'. "
                 "Only github.com URLs are accepted."
             )
             raise ValueError(msg)
@@ -130,7 +138,11 @@ Examples:
         "--output",
         "-o",
         metavar="FILE",
-        help="Save the scan results JSON to FILE (default: print to stdout).",
+        help=(
+            "Save the scan results JSON to FILE. If omitted, results are "
+            "printed to stdout and also auto-saved to a timestamped JSON "
+            "file in the results/ directory."
+        ),
     )
     parser.add_argument(
         "--token",

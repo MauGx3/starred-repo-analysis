@@ -1,5 +1,5 @@
 site_name: Starred Repo Analysis
-site_description: Analyses an user's starred repos and provides recommendations for your current project.
+site_description: Analyze starred GitHub repositories and generate project-aware recommendations.
 site_url: https://MauGx3.github.io/starred-repo-analysis
 repo_url: https://github.com/MauGx3/starred-repo-analysis
 repo_name: MauGx3/starred-repo-analysis
@@ -17,6 +17,10 @@ theme:
 
 nav:
   - Home: index.md
+  - Getting Started: getting-started.md
+  - Scanner CLI: scanner-cli.md
+  - Recommender Engine: recommender-engine.md
+  - Workflow Guide: starred-repository-scanner.md
 
 plugins:
   - search

@@ -12,8 +12,13 @@ authors = [
 ]
 requires-python = ">=3.10,<4.0"
 dependencies = [
+  "requests>=2.28.0",
+  "python-dotenv>=1.0.0",
   "poethepoet (>=0.32.1)",
 ]
+
+[project.scripts]
+starred-repo-analysis = "starred_repo_analysis.cli:main"
 
 [project.urls]  # https://packaging.python.org/en/latest/specifications/well-known-project-urls/#well-known-labels
 homepage = "https://github.com/MauGx3/starred-repo-analysis"

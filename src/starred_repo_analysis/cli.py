@@ -14,6 +14,7 @@ Usage
 
 import argparse
 import json
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +32,7 @@ except ImportError:
     _RECOMMENDER_AVAILABLE = False
 
 _GITHUB_HOSTS: frozenset[str] = frozenset({"github.com", "www.github.com"})
+LOGGER = logging.getLogger(__name__)
 
 
 def parse_github_username(value: str) -> str:
@@ -269,14 +271,14 @@ def _save_report(report: str, output_path: str | None, fmt: str) -> None:
         dest = Path(output_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(report, encoding="utf-8")
-        print(f"\nRecommendations saved to {dest}")
+        LOGGER.info("Recommendations saved to %s", dest)
     else:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         ext = "md" if fmt == "markdown" else "txt"
         dest = Path("results") / f"recommendations_{timestamp}.{ext}"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(report, encoding="utf-8")
-        print(f"\nRecommendations saved to {dest}")
+        LOGGER.info("Recommendations saved to %s", dest)
 
 
 def _run_recommendations(args: argparse.Namespace) -> None:
@@ -288,18 +290,14 @@ def _run_recommendations(args: argparse.Namespace) -> None:
         Parsed CLI arguments.
     """
     if not _RECOMMENDER_AVAILABLE:
-        print(
-            "Error: repo_recommender module could not be imported.",
-            file=sys.stderr,
-        )
+        LOGGER.error("repo_recommender module could not be imported.")
         sys.exit(1)
 
     starred_file = _find_latest_starred_file(args.output)
     if starred_file is None:
-        print(
-            "Error: Could not locate the starred repos JSON file for "
-            "recommendation. Re-run with --output to specify a path.",
-            file=sys.stderr,
+        LOGGER.error(
+            "Could not locate the starred repos JSON file for recommendation. "
+            "Re-run with --output to specify a path."
         )
         sys.exit(1)
 
@@ -323,6 +321,7 @@ def main() -> None:
     """
     parser = _build_parser()
     args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     try:
         username = parse_github_username(args.url)
@@ -342,7 +341,7 @@ def main() -> None:
     )
 
     if not args.output:
-        print(json.dumps(results, indent=2, ensure_ascii=False))
+        print(json.dumps(results, indent=2, ensure_ascii=False))  # noqa: T201
 
     if args.recommend:
         _run_recommendations(args)

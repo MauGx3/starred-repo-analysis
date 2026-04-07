@@ -22,8 +22,11 @@ updates:
       prefix-development: "build"
       include: scope
     allow:
+      - dependency-type: production
       - dependency-type: development
     versioning-strategy: increase
     groups:
+      runtime-dependencies:
+        dependency-type: production
       development-dependencies:
         dependency-type: development

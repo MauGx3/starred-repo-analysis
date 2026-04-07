@@ -7,5 +7,11 @@ services:
       - ..:/workspaces
       - command-history-volume:/home/user/.history/
 
+  app:
+    build:
+      target: app
+    profiles:
+      - app
+
 volumes:
   command-history-volume:

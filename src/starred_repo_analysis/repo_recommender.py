@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Repository Recommendation Engine
+Repository Recommendation Engine.
 
 This module provides AI-powered repository recommendations by analyzing
 project context and matching against starred repositories using semantic
@@ -18,55 +18,72 @@ Usage:
 # module importable in CI runners that don't have optional ML packages.
 from __future__ import annotations
 
+import argparse
 import json
+import logging
 import re
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import timezone
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import ClassVar
 
 UTC = timezone.utc
+LOGGER = logging.getLogger(__name__)
+
+DESCRIPTION_MAX_CHARS = 200
+DEFAULT_REPORT_PREVIEW_CHARS = 1000
+POPULAR_STARS_HIGH = 5000
+POPULAR_STARS_MEDIUM = 1000
+RECENT_DAYS_1_MONTH = 30
+RECENT_DAYS_3_MONTHS = 90
+RECENT_DAYS_6_MONTHS = 180
+RECENT_DAYS_1_YEAR = 365
+DIRECT_DEPENDENCY_THRESHOLD = 0.7
+REFERENCE_IMPL_THRESHOLD = 0.6
+SEMANTIC_SIMILARITY_HIGH = 0.7
 
 try:
     import numpy as np
 except ImportError:
-    import sys
-
-    print(
+    LOGGER.warning(
         "Warning: numpy not installed.\n"
-        f"Python executable: {sys.executable}\n"
-        f"Install with: {sys.executable} -m pip install numpy"
+        "Python executable: %s\n"
+        "Install with: %s -m pip install numpy",
+        sys.executable,
+        sys.executable,
     )
     np = None
 
 try:
     from sentence_transformers import SentenceTransformer
 except ImportError:
-    import sys
-
-    print(
+    LOGGER.warning(
         "Warning: sentence-transformers not installed.\n"
-        f"Python executable: {sys.executable}\n"
-        f"Install with: {sys.executable} -m pip install sentence-transformers"
+        "Python executable: %s\n"
+        "Install with: %s -m pip install sentence-transformers",
+        sys.executable,
+        sys.executable,
     )
     SentenceTransformer = None
 
 try:
     from sklearn.metrics.pairwise import cosine_similarity
 except ImportError:
-    import sys
-
-    print(
+    LOGGER.warning(
         "Warning: scikit-learn not installed.\n"
-        f"Python executable: {sys.executable}\n"
-        f"Install with: {sys.executable} -m pip install scikit-learn"
+        "Python executable: %s\n"
+        "Install with: %s -m pip install scikit-learn",
+        sys.executable,
+        sys.executable,
     )
     cosine_similarity = None
 
 
 @dataclass
 class RecommendationScore:
-    """Scoring breakdown for a repository recommendation"""
+    """Scoring breakdown for a repository recommendation."""
 
     semantic_score: float  # 0-1: Semantic similarity
     tech_stack_score: float  # 0-1: Technology stack match
@@ -79,7 +96,7 @@ class RecommendationScore:
 
 @dataclass
 class RepositoryRecommendation:
-    """A recommended repository with scoring details"""
+    """A recommended repository with scoring details."""
 
     name: str
     owner: str
@@ -91,9 +108,9 @@ class RepositoryRecommendation:
 
 
 class ProjectContext:
-    """Extracts and represents project context for matching"""
+    """Extract and represent project context for matching."""
 
-    def __init__(self, project_path: str = "."):
+    def __init__(self, project_path: str = ".") -> None:
         self.project_path = Path(project_path)
         self.readme_content = ""
         self.languages = []
@@ -103,14 +120,14 @@ class ProjectContext:
         self.description = ""
 
     def extract(self) -> ProjectContext:
-        """Extract project context from multiple sources"""
+        """Extract project context from multiple sources."""
         self._extract_readme()
         self._extract_package_info()
         self._detect_languages()
         return self
 
-    def _extract_readme(self):
-        """Extract information from README file"""
+    def _extract_readme(self) -> None:
+        """Extract information from a README file."""
         readme_patterns = [
             "README.md",
             "README.MD",
@@ -124,15 +141,15 @@ class ProjectContext:
             readme_path = self.project_path / pattern
             if readme_path.exists():
                 try:
-                    with open(readme_path, encoding="utf-8") as f:
-                        self.readme_content = f.read()
+                    with readme_path.open(encoding="utf-8") as file_handle:
+                        self.readme_content = file_handle.read()
                     self._parse_readme_content()
                     break
-                except Exception as e:
-                    print(f"Warning: Could not read README: {e}")
+                except (OSError, UnicodeDecodeError) as error:
+                    LOGGER.warning("Could not read README: %s", error)
 
-    def _parse_readme_content(self):
-        """Parse README to extract key information"""
+    def _parse_readme_content(self) -> None:  # noqa: C901
+        """Parse README to extract key information."""
         if not self.readme_content:
             return
 
@@ -141,17 +158,17 @@ class ProjectContext:
         desc_lines = []
         skip_title = True
 
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith("#"):
+        for raw_line in lines:
+            stripped_line = raw_line.strip()
+            if not stripped_line or stripped_line.startswith("#"):
                 if desc_lines:
                     break
                 continue
-            if skip_title and line:
+            if skip_title and stripped_line:
                 skip_title = False
-            if not skip_title and line:
-                desc_lines.append(line)
-                if len(" ".join(desc_lines)) > 200:
+            if not skip_title and stripped_line:
+                desc_lines.append(stripped_line)
+                if len(" ".join(desc_lines)) > DESCRIPTION_MAX_CHARS:
                     break
 
         self.description = " ".join(desc_lines)
@@ -197,29 +214,29 @@ class ProjectContext:
             if framework in content_lower:
                 self.frameworks.append(framework)
 
-    def _extract_package_info(self):
-        """Extract dependencies from package files"""
-        # Python: requirements.txt, setup.py, pyproject.toml
+    def _extract_package_info(self) -> None:
+        """Extract dependencies from package files."""
         req_file = self.project_path / "requirements.txt"
         if req_file.exists():
             try:
-                with open(req_file, encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#"):
+                with req_file.open(encoding="utf-8") as file_handle:
+                    for raw_line in file_handle:
+                        stripped_line = raw_line.strip()
+                        if stripped_line and not stripped_line.startswith("#"):
                             # Extract package name
-                            pkg = re.split(r"[>=<\[]", line)[0].strip()
+                            pkg = re.split(r"[>=<\[]", stripped_line)[
+                                0
+                            ].strip()
                             if pkg:
                                 self.dependencies.append(pkg)
-            except Exception as e:
-                print(f"Warning: Could not read requirements.txt: {e}")
+            except (OSError, UnicodeDecodeError) as error:
+                LOGGER.warning("Could not read requirements.txt: %s", error)
 
-        # Node.js: package.json
         pkg_file = self.project_path / "package.json"
         if pkg_file.exists():
             try:
-                with open(pkg_file, encoding="utf-8") as f:
-                    pkg_data = json.load(f)
+                with pkg_file.open(encoding="utf-8") as file_handle:
+                    pkg_data = json.load(file_handle)
                     self.description = self.description or pkg_data.get(
                         "description", ""
                     )
@@ -233,11 +250,15 @@ class ProjectContext:
                     # Extract keywords as topics
                     keywords = pkg_data.get("keywords", [])
                     self.topics.extend(keywords)
-            except Exception as e:
-                print(f"Warning: Could not read package.json: {e}")
+            except (
+                OSError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ) as error:
+                LOGGER.warning("Could not read package.json: %s", error)
 
-    def _detect_languages(self):
-        """Detect programming languages from file extensions"""
+    def _detect_languages(self) -> None:
+        """Detect programming languages from file extensions."""
         if self.languages:
             return  # Already detected from README
 
@@ -263,8 +284,8 @@ class ProjectContext:
                     ext = file_path.suffix.lower()
                     if ext in lang_extensions:
                         lang_counts[lang_extensions[ext]] += 1
-        except Exception as e:
-            print(f"Warning: Could not scan directory: {e}")
+        except OSError as error:
+            LOGGER.warning("Could not scan directory: %s", error)
 
         # Take top 3 languages by file count
         sorted_langs = sorted(
@@ -273,7 +294,7 @@ class ProjectContext:
         self.languages = [lang for lang, _ in sorted_langs[:3]]
 
     def get_text_representation(self) -> str:
-        """Get a text representation for semantic embedding"""
+        """Get a text representation for semantic embedding."""
         parts = []
 
         if self.description:
@@ -292,10 +313,10 @@ class ProjectContext:
 
 
 class RepositoryRecommender:
-    """AI-powered repository recommendation engine"""
+    """AI-powered repository recommendation engine."""
 
     # Scoring weights
-    WEIGHTS = {
+    WEIGHTS: ClassVar[dict[str, float]] = {
         "semantic": 0.35,
         "tech_stack": 0.25,
         "topic": 0.20,
@@ -304,7 +325,7 @@ class RepositoryRecommender:
     }
 
     # Category thresholds and keywords
-    CATEGORIES = {
+    CATEGORIES: ClassVar[dict[str, dict[str, list[str] | float]]] = {
         "direct_dependency": {
             "keywords": ["library", "package", "module", "sdk", "api-client"],
             "threshold": 0.7,
@@ -342,9 +363,8 @@ class RepositoryRecommender:
         },
     }
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        """
-        Initialize recommender with ML model
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        """Initialize recommender with ML model.
 
         Args:
             model_name: Sentence transformer model name
@@ -355,12 +375,12 @@ class RepositoryRecommender:
 
         if SentenceTransformer is not None:
             try:
-                print(f"Loading model: {model_name}...")
+                LOGGER.info("Loading model: %s...", model_name)
                 self.model = SentenceTransformer(model_name)
-                print("Model loaded successfully")
-            except Exception as e:
-                print(f"Warning: Could not load model: {e}")
-                print("Semantic scoring will be disabled")
+                LOGGER.info("Model loaded successfully")
+            except (RuntimeError, ValueError, OSError) as error:
+                LOGGER.warning("Could not load model: %s", error)
+                LOGGER.warning("Semantic scoring will be disabled")
 
     def recommend(
         self,
@@ -369,8 +389,7 @@ class RepositoryRecommender:
         top_n: int = 20,
         min_score: float = 30.0,
     ) -> dict[str, list[RepositoryRecommendation]]:
-        """
-        Generate repository recommendations
+        """Generate repository recommendations.
 
         Args:
             starred_repos_file: Path to starred repos JSON
@@ -383,35 +402,37 @@ class RepositoryRecommender:
             Dictionary mapping categories to recommendations
         """
         # Extract project context
-        print("Analyzing project context...")
+        LOGGER.info("Analyzing project context...")
         context = ProjectContext(project_path).extract()
-        print(f"Project: {context.description[:100]}...")
-        print(f"Languages: {', '.join(context.languages)}")
-        print(f"Frameworks: {', '.join(context.frameworks)}")
+        LOGGER.info("Project: %s...", context.description[:100])
+        LOGGER.info("Languages: %s", ", ".join(context.languages))
+        LOGGER.info("Frameworks: %s", ", ".join(context.frameworks))
 
         # Load starred repositories
-        print(f"\nLoading starred repositories from {starred_repos_file}...")
-        with open(starred_repos_file, encoding="utf-8") as f:
-            data = json.load(f)
+        LOGGER.info(
+            "Loading starred repositories from %s...", starred_repos_file
+        )
+        with Path(starred_repos_file).open(encoding="utf-8") as file_handle:
+            data = json.load(file_handle)
             repos = data.get("repositories", [])
-        print(f"Loaded {len(repos)} repositories")
+        LOGGER.info("Loaded %s repositories", len(repos))
 
         # Generate embeddings if model available
         project_embedding = None
         repo_embeddings = None
 
         if self.model is not None:
-            print("\nGenerating semantic embeddings...")
+            LOGGER.info("Generating semantic embeddings...")
             project_text = context.get_text_representation()
             project_embedding = self.model.encode([project_text])[0]
 
             # Generate embeddings for repositories
             repo_texts = [self._get_repo_text(repo) for repo in repos]
             repo_embeddings = self.model.encode(repo_texts)
-            print("Embeddings generated")
+            LOGGER.info("Embeddings generated")
 
         # Score all repositories
-        print("\nScoring repositories...")
+        LOGGER.info("Scoring repositories...")
         recommendations = []
         for i, repo in enumerate(repos):
             score = self._score_repository(
@@ -447,14 +468,14 @@ class RepositoryRecommender:
             )
             categorized[category] = categorized[category][:top_n]
 
-        print(f"\nGenerated {len(recommendations)} recommendations")
+        LOGGER.info("Generated %s recommendations", len(recommendations))
         for category, recs in categorized.items():
-            print(f"  {category}: {len(recs)}")
+            LOGGER.info("  %s: %s", category, len(recs))
 
         return dict(categorized)
 
     def _get_repo_text(self, repo: dict) -> str:
-        """Get text representation of repository for embedding"""
+        """Get text representation of repository for embedding."""
         parts = []
 
         desc = repo.get("enhanced_description") or repo.get("description", "")
@@ -477,7 +498,7 @@ class RepositoryRecommender:
         project_embedding: np.ndarray | None,
         repo_embedding: np.ndarray | None,
     ) -> RecommendationScore:
-        """Calculate comprehensive score for a repository"""
+        """Calculate comprehensive score for a repository."""
         reasoning = []
 
         # 1. Semantic similarity (0-1)
@@ -490,7 +511,7 @@ class RepositoryRecommender:
             semantic_score = float(
                 cosine_similarity([project_embedding], [repo_embedding])[0][0]
             )
-            if semantic_score > 0.7:
+            if semantic_score > SEMANTIC_SIMILARITY_HIGH:
                 reasoning.append(
                     f"High semantic similarity ({semantic_score:.2f})"
                 )
@@ -529,7 +550,7 @@ class RepositoryRecommender:
     def _calculate_tech_stack_score(
         self, repo: dict, context: ProjectContext, reasoning: list[str]
     ) -> float:
-        """Calculate technology stack matching score"""
+        """Calculate technology stack matching score."""
         score = 0.0
         matches = []
 
@@ -569,9 +590,9 @@ class RepositoryRecommender:
     def _calculate_topic_score(
         self, repo: dict, context: ProjectContext, reasoning: list[str]
     ) -> float:
-        """Calculate topic overlap score"""
-        repo_topics = set(t.lower() for t in repo.get("topics", []))
-        project_topics = set(t.lower() for t in context.topics)
+        """Calculate topic overlap score."""
+        repo_topics = {topic.lower() for topic in repo.get("topics", [])}
+        project_topics = {topic.lower() for topic in context.topics}
 
         if not repo_topics or not project_topics:
             return 0.0
@@ -587,7 +608,7 @@ class RepositoryRecommender:
     def _calculate_popularity_score(
         self, repo: dict, reasoning: list[str]
     ) -> float:
-        """Calculate normalized popularity score"""
+        """Calculate normalized popularity score."""
         stars = repo.get("stars", 0)
 
         # Logarithmic scale: 0 stars -> 0, 10k stars -> ~1.0
@@ -596,9 +617,9 @@ class RepositoryRecommender:
 
         score = min(np.log10(stars + 1) / 4.0, 1.0) if np else 0.0
 
-        if stars > 5000:
+        if stars > POPULAR_STARS_HIGH:
             reasoning.append(f"Highly popular ({stars:,} stars)")
-        elif stars > 1000:
+        elif stars > POPULAR_STARS_MEDIUM:
             reasoning.append(f"Popular project ({stars:,} stars)")
 
         return score
@@ -606,9 +627,7 @@ class RepositoryRecommender:
     def _calculate_recency_score(
         self, repo: dict, reasoning: list[str]
     ) -> float:
-        """Calculate recency/activity score"""
-        from datetime import datetime, timezone
-
+        """Calculate recency/activity score."""
         pushed_at = repo.get("pushed_at")
         if not pushed_at:
             return 0.0
@@ -622,27 +641,27 @@ class RepositoryRecommender:
             days_ago = (now - last_update).days
 
             # Score based on recency: < 30 days -> 1.0, > 365 days -> 0.0
-            if days_ago < 30:
+            if days_ago < RECENT_DAYS_1_MONTH:
                 score = 1.0
                 reasoning.append("Recently updated (< 1 month)")
-            elif days_ago < 90:
+            elif days_ago < RECENT_DAYS_3_MONTHS:
                 score = 0.8
                 reasoning.append("Recently updated (< 3 months)")
-            elif days_ago < 180:
+            elif days_ago < RECENT_DAYS_6_MONTHS:
                 score = 0.6
-            elif days_ago < 365:
+            elif days_ago < RECENT_DAYS_1_YEAR:
                 score = 0.4
             else:
                 score = 0.2
-
-            return score
-        except Exception:
+        except ValueError:
             return 0.0
+        else:
+            return score
 
     def _categorize_repository(
         self, repo: dict, score: RecommendationScore
     ) -> str:
-        """Categorize repository based on content and score"""
+        """Categorize repository based on content and score."""
         desc = repo.get("description", "")
         enhanced = repo.get("enhanced_description", "")
         topics = " ".join(repo.get("topics", []))
@@ -655,9 +674,9 @@ class RepositoryRecommender:
                     return category
 
         # Default categorization based on score
-        if score.tech_stack_score > 0.7:
+        if score.tech_stack_score > DIRECT_DEPENDENCY_THRESHOLD:
             return "direct_dependency"
-        if score.semantic_score > 0.6:
+        if score.semantic_score > REFERENCE_IMPL_THRESHOLD:
             return "reference_implementation"
         return "learning_resource"
 
@@ -666,8 +685,7 @@ class RepositoryRecommender:
         recommendations: dict[str, list[RepositoryRecommendation]],
         output_format: str = "markdown",
     ) -> str:
-        """
-        Generate human-readable report
+        """Generate a human-readable report.
 
         Args:
             recommendations: Categorized recommendations
@@ -684,7 +702,7 @@ class RepositoryRecommender:
     def _generate_markdown_report(
         self, recommendations: dict[str, list[RepositoryRecommendation]]
     ) -> str:
-        """Generate markdown report"""
+        """Generate a markdown report."""
         lines = ["# Repository Recommendations\n"]
 
         category_names = {
@@ -723,8 +741,9 @@ class RepositoryRecommender:
                 # Reasoning
                 if rec.score.reasoning:
                     lines.append("**Why this recommendation:**")
-                    for reason in rec.score.reasoning:
-                        lines.append(f"- {reason}")
+                    lines.extend(
+                        [f"- {reason}" for reason in rec.score.reasoning]
+                    )
                     lines.append("")
 
                 # Metadata
@@ -750,7 +769,7 @@ class RepositoryRecommender:
     def _generate_text_report(
         self, recommendations: dict[str, list[RepositoryRecommendation]]
     ) -> str:
-        """Generate plain text report"""
+        """Generate a plain text report."""
         lines = ["REPOSITORY RECOMMENDATIONS", "=" * 50, ""]
 
         for category, recs in sorted(recommendations.items()):
@@ -768,17 +787,18 @@ class RepositoryRecommender:
 
                 if rec.score.reasoning:
                     lines.append("   Reasons:")
-                    for reason in rec.score.reasoning:
-                        lines.append(f"   - {reason}")
+                    lines.extend(
+                        [f"   - {reason}" for reason in rec.score.reasoning]
+                    )
 
                 lines.append("")
 
         return "\n".join(lines)
 
 
-def main():
-    """CLI interface for testing"""
-    import argparse
+def main() -> None:
+    """Run the CLI interface for testing."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     parser = argparse.ArgumentParser(
         description="AI-powered repository recommendations"
@@ -789,9 +809,7 @@ def main():
         help="Path to starred repositories JSON file",
     )
     parser.add_argument(
-        "--project-path",
-        default=".",
-        help="Path to project for analysis",
+        "--project-path", default=".", help="Path to project for analysis"
     )
     parser.add_argument(
         "--output",
@@ -836,26 +854,25 @@ def main():
     # Generate default output filename if not specified
     output_file = args.output
     if not output_file:
-        from datetime import datetime, timezone
-
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         ext = "md" if args.format == "markdown" else "txt"
         output_file = f"results/recommendations_{timestamp}.{ext}"
 
     # Save output
-    import os
-
-    output_dir = os.path.dirname(output_file)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(report)
-    print(f"\nReport saved to {output_file}")
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as file_handle:
+        file_handle.write(report)
+    LOGGER.info("Report saved to %s", output_path)
 
     # Also print to stdout for immediate viewing
-    print("\n" + "=" * 50)
-    print(report[:1000] + "..." if len(report) > 1000 else report)
+    LOGGER.info("\n%s", "=" * 50)
+    LOGGER.info(
+        "%s",
+        report[:DEFAULT_REPORT_PREVIEW_CHARS] + "..."
+        if len(report) > DEFAULT_REPORT_PREVIEW_CHARS
+        else report,
+    )
 
 
 if __name__ == "__main__":

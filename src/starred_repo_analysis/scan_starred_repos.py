@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Starred Repository Scanner
+Starred Repository Scanner.
 
 This script fetches starred repositories from GitHub, extracts metadata,
 and prepares data for AI-based analysis.
@@ -11,10 +11,13 @@ Usage:
 """
 
 import argparse
+import base64
 import json
+import logging
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -24,23 +27,39 @@ load_dotenv()
 
 try:
     import requests
+    from requests import RequestException
 except ImportError:
-    print(
-        "Error: requests library is required. Install with: pip install requests"
-    )
+    sys.stderr.write("Error: requests library is required. Install with: pip install requests\n")
     sys.exit(1)
+
+try:
+    from starred_repo_analysis.repo_recommender import RepositoryRecommender
+except ImportError:
+    try:
+        from repo_recommender import RepositoryRecommender
+    except ImportError:
+        RepositoryRecommender = None
+
+
+LOGGER = logging.getLogger(__name__)
+HTTP_OK = 200
+HTTP_UNAUTHORIZED = 401
+HTTP_NOT_FOUND = 404
+LOW_RATE_LIMIT_THRESHOLD = 10
+REQUEST_TIMEOUT_SECONDS = 30
+README_PREVIEW_LENGTH = 2000
+POPULAR_STARS_THRESHOLD = 1000
+ACTIVE_STARS_THRESHOLD = 100
+PROGRESS_INTERVAL = 10
 
 
 class StarredRepoScanner:
-    """Scanner for GitHub starred repositories"""
+    """Scanner for GitHub starred repositories."""
 
     BASE_URL = "https://api.github.com"
 
-    def __init__(
-        self, token: str | None = None, username: str | None = None
-    ):
-        """
-        Initialize scanner
+    def __init__(self, token: str | None = None, username: str | None = None) -> None:
+        """Initialize scanner.
 
         Args:
             token: GitHub personal access token (optional but recommended)
@@ -55,11 +74,8 @@ class StarredRepoScanner:
 
         self.headers["Accept"] = "application/vnd.github.v3+json"
 
-    def fetch_starred_repos(
-        self, per_page: int = 100, max_pages: int | None = None
-    ) -> list[dict]:
-        """
-        Fetch starred repositories
+    def fetch_starred_repos(self, per_page: int = 100, max_pages: int | None = None) -> list[dict]:
+        """Fetch starred repositories.
 
         Args:
             per_page: Number of results per page (max 100)
@@ -80,29 +96,22 @@ class StarredRepoScanner:
             if max_pages and page > max_pages:
                 break
 
-            print(f"Fetching page {page}...", file=sys.stderr)
+            LOGGER.info("Fetching page %s...", page)
 
             params = {"per_page": per_page, "page": page}
-            response = requests.get(url, headers=self.headers, params=params)
+            response = requests.get(
+                url, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT_SECONDS
+            )
 
-            if response.status_code == 401:
-                print(
-                    "Error: Authentication required. Set GITHUB_TOKEN environment variable.",
-                    file=sys.stderr,
-                )
+            if response.status_code == HTTP_UNAUTHORIZED:
+                LOGGER.error("Authentication required. Set GITHUB_TOKEN environment variable.")
                 sys.exit(1)
-            elif response.status_code == 404:
-                print(
-                    f"Error: User '{self.username}' not found.",
-                    file=sys.stderr,
-                )
+            if response.status_code == HTTP_NOT_FOUND:
+                LOGGER.error("User '%s' not found.", self.username)
                 sys.exit(1)
-            elif response.status_code != 200:
-                print(
-                    f"Error: API returned status code {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
+            if response.status_code != HTTP_OK:
+                LOGGER.error("API returned status code %s", response.status_code)
+                LOGGER.error("Response: %s", response.text)
                 sys.exit(1)
 
             repos = response.json()
@@ -115,20 +124,14 @@ class StarredRepoScanner:
 
             # Check rate limit
             remaining = response.headers.get("X-RateLimit-Remaining")
-            if remaining and int(remaining) < 10:
-                print(
-                    f"Warning: Only {remaining} API calls remaining",
-                    file=sys.stderr,
-                )
+            if remaining and int(remaining) < LOW_RATE_LIMIT_THRESHOLD:
+                LOGGER.warning("Only %s API calls remaining", remaining)
 
-        print(
-            f"Fetched {len(all_repos)} starred repositories", file=sys.stderr
-        )
+        LOGGER.info("Fetched %s starred repositories", len(all_repos))
         return all_repos
 
     def fetch_readme(self, owner: str, repo: str) -> str | None:
-        """
-        Fetch README content for a repository
+        """Fetch README content for a repository.
 
         Args:
             owner: Repository owner
@@ -136,30 +139,24 @@ class StarredRepoScanner:
 
         Returns
         -------
-            README content as string, or None if not found
+            README content as string, or None if not found.
         """
         url = f"{self.BASE_URL}/repos/{owner}/{repo}/readme"
 
         try:
-            response = requests.get(url, headers=self.headers)
-            if response.status_code == 200:
+            response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT_SECONDS)
+            if response.status_code == HTTP_OK:
                 data = response.json()
                 # README content is base64 encoded
-                import base64
-
                 content = base64.b64decode(data["content"]).decode("utf-8")
                 return content
-        except Exception as e:
-            print(
-                f"Warning: Could not fetch README for {owner}/{repo}: {e}",
-                file=sys.stderr,
-            )
+        except RequestException as error:
+            LOGGER.warning("Could not fetch README for %s/%s: %s", owner, repo, error)
 
         return None
 
     def fetch_languages(self, owner: str, repo: str) -> dict | None:
-        """
-        Fetch language breakdown for a repository
+        """Fetch language breakdown for a repository.
 
         Args:
             owner: Repository owner
@@ -167,27 +164,23 @@ class StarredRepoScanner:
 
         Returns
         -------
-            Dictionary of languages with byte counts, or None if not found
+            Dictionary of languages with byte counts, or None if not found.
         """
         url = f"{self.BASE_URL}/repos/{owner}/{repo}/languages"
 
         try:
-            response = requests.get(url, headers=self.headers)
-            if response.status_code == 200:
+            response = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT_SECONDS)
+            if response.status_code == HTTP_OK:
                 return response.json()
-        except Exception as e:
-            print(
-                f"Warning: Could not fetch languages for {owner}/{repo}: {e}",
-                file=sys.stderr,
-            )
+        except RequestException as error:
+            LOGGER.warning("Could not fetch languages for %s/%s: %s", owner, repo, error)
 
         return None
 
-    def generate_enhanced_description(
+    def generate_enhanced_description(  # noqa: C901
         self, repo: dict, readme: str | None = None
     ) -> str:
-        """
-        Generate an enhanced description using repository metadata
+        """Generate an enhanced description using repository metadata.
 
         Args:
             repo: Repository data from GitHub API
@@ -195,7 +188,7 @@ class StarredRepoScanner:
 
         Returns
         -------
-            Enhanced description string
+            Enhanced description string.
         """
         base_description = repo.get("description", "")
 
@@ -218,9 +211,9 @@ class StarredRepoScanner:
 
         # Add activity indicators
         stars = repo.get("stargazers_count", 0)
-        if stars > 1000:
+        if stars > POPULAR_STARS_THRESHOLD:
             enhanced_parts.append(f"Popular project with {stars:,} stars")
-        elif stars > 100:
+        elif stars > ACTIVE_STARS_THRESHOLD:
             enhanced_parts.append(f"Active project with {stars} stars")
 
         # Extract key phrases from README if available
@@ -241,26 +234,20 @@ class StarredRepoScanner:
             elif "library" in readme_lower:
                 enhanced_parts.append("Library")
 
-            if "api" in readme_lower and (
-                "rest" in readme_lower or "graphql" in readme_lower
-            ):
+            if "api" in readme_lower and ("rest" in readme_lower or "graphql" in readme_lower):
                 enhanced_parts.append("Provides API functionality")
 
-        return (
-            " | ".join(enhanced_parts)
-            if enhanced_parts
-            else "No description available"
-        )
+        return " | ".join(enhanced_parts) if enhanced_parts else "No description available"
 
     def extract_metadata(
         self,
         repo: dict,
+        *,
         include_readme: bool = False,
         include_languages: bool = False,
         enhance_description: bool = False,
     ) -> dict:
-        """
-        Extract relevant metadata from repository data
+        """Extract relevant metadata from repository data.
 
         Args:
             repo: Repository data from GitHub API
@@ -270,7 +257,7 @@ class StarredRepoScanner:
 
         Returns
         -------
-            Dictionary with extracted metadata
+            Dictionary with extracted metadata.
         """
         metadata = {
             "repository": repo["full_name"],
@@ -288,9 +275,7 @@ class StarredRepoScanner:
             "updated_at": repo["updated_at"],
             "pushed_at": repo.get("pushed_at"),
             "homepage": repo.get("homepage"),
-            "license": repo.get("license", {}).get("name")
-            if repo.get("license")
-            else None,
+            "license": repo.get("license", {}).get("name") if repo.get("license") else None,
             "archived": repo.get("archived", False),
             "fork": repo.get("fork", False),
             "default_branch": repo.get("default_branch", "main"),
@@ -301,18 +286,14 @@ class StarredRepoScanner:
 
         readme_content = None
         if include_readme:
-            readme_content = self.fetch_readme(
-                repo["owner"]["login"], repo["name"]
-            )
+            readme_content = self.fetch_readme(repo["owner"]["login"], repo["name"])
             if readme_content:
                 # Truncate to first 2000 characters to keep manageable for AI
-                metadata["readme_preview"] = readme_content[:2000]
+                metadata["readme_preview"] = readme_content[:README_PREVIEW_LENGTH]
 
         # Fetch language breakdown
         if include_languages:
-            languages = self.fetch_languages(
-                repo["owner"]["login"], repo["name"]
-            )
+            languages = self.fetch_languages(repo["owner"]["login"], repo["name"])
             if languages:
                 # Calculate percentages
                 total_bytes = sum(languages.values())
@@ -324,24 +305,24 @@ class StarredRepoScanner:
 
         # Generate enhanced description
         if enhance_description:
-            metadata["enhanced_description"] = (
-                self.generate_enhanced_description(repo, readme_content)
+            metadata["enhanced_description"] = self.generate_enhanced_description(
+                repo, readme_content
             )
 
         return metadata
 
-    def scan(
+    def scan(  # noqa: PLR0913
         self,
         output_file: str | None = None,
         per_page: int = 100,
         max_pages: int | None = None,
+        *,
         include_readme: bool = False,
         include_languages: bool = False,
         enhance_description: bool = False,
         limit: int | None = None,
     ) -> dict:
-        """
-        Scan starred repositories and generate output
+        """Scan starred repositories and generate output.
 
         Args:
             output_file: Path to save JSON output
@@ -355,27 +336,22 @@ class StarredRepoScanner:
 
         Returns
         -------
-            Dictionary with scan results
+            Dictionary with scan results.
         """
         # Fetch repositories
-        repos = self.fetch_starred_repos(
-            per_page=per_page, max_pages=max_pages
-        )
+        repos = self.fetch_starred_repos(per_page=per_page, max_pages=max_pages)
 
         # Apply limit if specified
         if limit:
             repos = repos[:limit]
 
         # Extract metadata
-        print(f"Processing {len(repos)} repositories...", file=sys.stderr)
+        LOGGER.info("Processing %s repositories...", len(repos))
         repositories = []
 
         for i, repo in enumerate(repos, 1):
-            if i % 10 == 0:
-                print(
-                    f"Processed {i}/{len(repos)} repositories...",
-                    file=sys.stderr,
-                )
+            if i % PROGRESS_INTERVAL == 0:
+                LOGGER.info("Processed %s/%s repositories...", i, len(repos))
 
             metadata = self.extract_metadata(
                 repo,
@@ -400,18 +376,18 @@ class StarredRepoScanner:
             output_file = f"results/starred_repos_{username}_{timestamp}.json"
 
         # Save to file
-        output_dir = os.path.dirname(output_file)
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(output, f, indent=2, ensure_ascii=False)
-        print(f"Results saved to {output_file}", file=sys.stderr)
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8") as file_handle:
+            json.dump(output, file_handle, indent=2, ensure_ascii=False)
+        LOGGER.info("Results saved to %s", output_path)
 
         return output
 
 
-def main():
-    """Main entry point"""
+def main() -> None:  # noqa: C901, PLR0915
+    """Run the command-line interface."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(
         description="Scan GitHub starred repositories and extract metadata",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -438,40 +414,20 @@ Examples:
         """,
     )
 
+    parser.add_argument("--output", "-o", help="Output JSON file path (default: print to stdout)")
     parser.add_argument(
-        "--output",
-        "-o",
-        help="Output JSON file path (default: print to stdout)",
+        "--username", "-u", help="GitHub username to scan (defaults to authenticated user)"
     )
     parser.add_argument(
-        "--username",
-        "-u",
-        help="GitHub username to scan (defaults to authenticated user)",
+        "--token", "-t", help="GitHub personal access token (or set GITHUB_TOKEN env var)"
     )
     parser.add_argument(
-        "--token",
-        "-t",
-        help="GitHub personal access token (or set GITHUB_TOKEN env var)",
+        "--per-page", type=int, default=100, help="Results per page (max 100, default: 100)"
     )
+    parser.add_argument("--max-pages", type=int, help="Maximum pages to fetch (default: all)")
+    parser.add_argument("--limit", "-l", type=int, help="Maximum number of repositories to process")
     parser.add_argument(
-        "--per-page",
-        type=int,
-        default=100,
-        help="Results per page (max 100, default: 100)",
-    )
-    parser.add_argument(
-        "--max-pages", type=int, help="Maximum pages to fetch (default: all)"
-    )
-    parser.add_argument(
-        "--limit",
-        "-l",
-        type=int,
-        help="Maximum number of repositories to process",
-    )
-    parser.add_argument(
-        "--include-readme",
-        action="store_true",
-        help="Fetch and include README previews (slower)",
+        "--include-readme", action="store_true", help="Fetch and include README previews (slower)"
     )
     parser.add_argument(
         "--include-languages",
@@ -484,9 +440,7 @@ Examples:
         help="Generate enhanced descriptions using metadata analysis",
     )
     parser.add_argument(
-        "--recommend",
-        action="store_true",
-        help="Generate AI-powered repository recommendations",
+        "--recommend", action="store_true", help="Generate AI-powered repository recommendations"
     )
     parser.add_argument(
         "--project-path",
@@ -494,8 +448,7 @@ Examples:
         help="Path to project for recommendation analysis (default: current)",
     )
     parser.add_argument(
-        "--recommend-output",
-        help="Output file for recommendations (default: stdout)",
+        "--recommend-output", help="Output file for recommendations (default: stdout)"
     )
     parser.add_argument(
         "--recommend-format",
@@ -520,39 +473,32 @@ Examples:
 
     # Handle recommendation mode
     if args.recommend:
-        # Import recommender module
-        try:
-            from repo_recommender import RepositoryRecommender
-        except ImportError:
-            print(
-                "Error: repo_recommender module not found. "
-                "Make sure repo_recommender.py is in the same directory."
+        if RepositoryRecommender is None:
+            LOGGER.error(
+                "repo_recommender module not found. Make sure repo_recommender.py is importable."
             )
             sys.exit(1)
 
         # Helper: find latest starred_repos file in results/
-        def find_latest_results_file(
-            username_hint: str | None = None,
-        ) -> str | None:
-            results_dir = os.path.join(os.getcwd(), "results")
-            if not os.path.isdir(results_dir):
+        def find_latest_results_file(username_hint: str | None = None) -> str | None:
+            results_dir = Path.cwd() / "results"
+            if not results_dir.is_dir():
                 return None
-            candidates = []
-            for name in os.listdir(results_dir):
-                if name.startswith("starred_repos_") and name.endswith(
-                    ".json"
-                ):
+            candidates: list[Path] = []
+            for entry in results_dir.iterdir():
+                name = entry.name
+                if name.startswith("starred_repos_") and name.endswith(".json"):
                     if username_hint and username_hint not in name:
                         # still allow other files if none match username later
                         pass
-                    candidates.append(os.path.join(results_dir, name))
+                    candidates.append(entry)
             if not candidates:
                 return None
-            # return newest by modification time
-            candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-            return candidates[0]
+            newest_candidate = max(candidates, key=lambda candidate: candidate.stat().st_mtime)
+            return str(newest_candidate)
 
-        # Determine starred repos file: prefer explicit output, then latest in results/, else run a quick scan to produce one
+        # Determine starred repos file: prefer explicit output, then latest in
+        # results/, else run a quick scan to produce one.
         starred_file = None
         if args.output:
             starred_file = args.output
@@ -565,14 +511,11 @@ Examples:
             starred_file = find_latest_results_file(username_hint)
 
         # If we still don't have a file, run a scan to produce one
-        if not starred_file or not os.path.exists(starred_file):
-            print(
-                "No existing starred repos file found; running a quick scan to generate one...",
-                file=sys.stderr,
+        if not starred_file or not Path(starred_file).exists():
+            LOGGER.info(
+                "No existing starred repos file found; running a quick scan to generate one..."
             )
-            scanner = StarredRepoScanner(
-                token=args.token, username=args.username
-            )
+            scanner = StarredRepoScanner(token=args.token, username=args.username)
             # run a short scan (honor other flags)
             scanner.scan(
                 output_file=None,
@@ -586,15 +529,14 @@ Examples:
             # find the newest file now
             starred_file = find_latest_results_file(args.username)
 
-        if not starred_file or not os.path.exists(starred_file):
-            print(
+        if not starred_file or not Path(starred_file).exists():
+            LOGGER.error(
                 "Error: Could not locate or create starred repos file."
-                " Run the scanner first (without --recommend) or provide --output path.",
-                file=sys.stderr,
+                " Run the scanner first (without --recommend) or provide --output path."
             )
             sys.exit(1)
 
-        print(f"Using starred repos file: {starred_file}")
+        LOGGER.info("Using starred repos file: %s", starred_file)
 
         # Create recommender and generate recommendations
         recommender = RepositoryRecommender()
@@ -606,32 +548,25 @@ Examples:
         )
 
         # Generate report
-        report = recommender.generate_report(
-            recommendations, args.recommend_format
-        )
+        report = recommender.generate_report(recommendations, args.recommend_format)
 
         # Output report to file if requested, otherwise recommender will auto-save
         if args.recommend_output:
-            output_path = args.recommend_output
-            output_dir = os.path.dirname(output_path)
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(report)
-            print(f"\nRecommendations saved to {output_path}")
+            output_path = Path(args.recommend_output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with output_path.open("w", encoding="utf-8") as file_handle:
+                file_handle.write(report)
+            LOGGER.info("Recommendations saved to %s", output_path)
         else:
-            # Let recommender module handle default saving behavior by saving here to results/
-            from datetime import datetime
-
+            # Let recommender module handle default saving behavior by saving
+            # here to results/.
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             ext = "md" if args.recommend_format == "markdown" else "txt"
-            default_path = os.path.join(
-                "results", f"recommendations_{timestamp}.{ext}"
-            )
-            os.makedirs(os.path.dirname(default_path), exist_ok=True)
-            with open(default_path, "w", encoding="utf-8") as f:
-                f.write(report)
-            print(f"\nRecommendations saved to {default_path}")
+            default_path = Path("results") / f"recommendations_{timestamp}.{ext}"
+            default_path.parent.mkdir(parents=True, exist_ok=True)
+            with default_path.open("w", encoding="utf-8") as file_handle:
+                file_handle.write(report)
+            LOGGER.info("Recommendations saved to %s", default_path)
 
         return
 
@@ -651,7 +586,7 @@ Examples:
 
     # Print to stdout if no output file specified
     if not args.output:
-        print(json.dumps(results, indent=2, ensure_ascii=False))
+        LOGGER.info(json.dumps(results, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
